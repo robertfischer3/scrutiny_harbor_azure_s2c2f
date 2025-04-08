@@ -1,0 +1,76 @@
+# modules/harbor/templates/values.yaml
+expose:
+  type: ingress
+  tls:
+    enabled: true
+    secretName: ${tls_cert_secret != "" ? tls_cert_secret : "harbor-tls"}
+  ingress:
+    hosts:
+      core: ${domain}
+      notary: notary.${domain}
+
+externalURL: https://${domain}
+
+persistence:
+  enabled: true
+  persistentVolumeClaim:
+    registry:
+      size: 50Gi
+    database:
+      size: 10Gi
+    redis:
+      size: 5Gi
+
+# Use external PostgreSQL
+database:
+  type: external
+  external:
+    host: ${database_host}
+    port: "5432"
+    username: "postgres"
+    password: ${database_password}
+    sslmode: "require"
+
+# Use external Redis
+redis:
+  type: external
+  external:
+    addr: ${redis_host}
+    password: ${redis_password}
+
+# Configure storage
+registry:
+  storage:
+    type: ${registry_storage}
+%{ if registry_storage == "azure" }
+    azure:
+      accountname: ${storage_account_name}
+      accountkey: ${storage_account_key}
+      container: ${storage_container_name}
+%{ endif }
+
+# S2C2F Level 3 security features
+trivy:
+  enabled: true
+  gitHubToken: ""
+  skipUpdate: false
+  ignoreUnfixed: true
+  securityCheck: "vuln,config"
+  severity: "CRITICAL,HIGH,MEDIUM"
+
+notary:
+  enabled: true
+
+audit:
+  enabled: true
+  
+# Allow only signed images in prod
+securityContext:
+  runAsUser: 1000
+  fsGroup: 1000
+
+log:
+  level: info
+  local:
+    rotate_count: 30
+    rotate_size: 100M
