@@ -22,7 +22,7 @@ fi
 cd "$ENV_DIR"
 
 # Run terragrunt init in each subdirectory
-find . -type d -name "*" -mindepth 1 -maxdepth 1 | while read -r dir; do
+find . -mindepth 1 -maxdepth 1 -type d -name "*" | while read -r dir; do
   echo "Initializing $dir..."
   cd "$dir"
   terragrunt init

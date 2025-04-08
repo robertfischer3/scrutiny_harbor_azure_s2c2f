@@ -1,13 +1,11 @@
-# live/dev/terragrunt.hcl (updated)
 
-# Include root terragrunt.hcl
 include {
-  path = find_in_parent_folders()
+  path = "${find_in_parent_folders("root.hcl")}"
 }
 
 # Local variables for dev environment
 locals {
-  
+
   # These would be populated from environment variables during CI/CD
   harbor_admin_password = get_env("HARBOR_ADMIN_PASSWORD")
   harbor_db_password    = get_env("HARBOR_DB_PASSWORD")
