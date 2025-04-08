@@ -18,9 +18,7 @@ resource "azurerm_key_vault" "vault" {
   sku_name                   = "standard"
   
   # Enable RBAC for Key Vault
-  enable_rbac             = true
   enabled_for_deployment  = true
-  enable_disk_encryption  = true
   
   # Configure network access based on environment
   network_acls {
@@ -146,23 +144,9 @@ resource "azurerm_monitor_diagnostic_setting" "kv_diag" {
   target_resource_id         = azurerm_key_vault.vault.id
   log_analytics_workspace_id = var.log_analytics_workspace_id
 
-  log {
-    category = "AuditEvent"
-    enabled  = true
-    
-    retention_policy {
-      enabled = true
-      days    = 365
-    }
-  }
 
   metric {
     category = "AllMetrics"
     enabled  = true
-
-    retention_policy {
-      enabled = true
-      days    = 30
-    }
   }
 }

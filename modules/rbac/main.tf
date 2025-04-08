@@ -24,12 +24,12 @@ resource "azuread_application" "harbor_sp" {
 }
 
 resource "azuread_service_principal" "harbor_sp" {
-  application_id = azuread_application.harbor_sp.application_id
+  client_id = azuread_application.harbor_sp.client_id
 }
 
 resource "azuread_service_principal_password" "harbor_sp_password" {
   service_principal_id = azuread_service_principal.harbor_sp.id
-  end_date_relative    = "8760h" # 1 year
+  end_date             = timestamp() + "8760h" # 1 year from now
 }
 
 # Role assignments - assign AKS admin role to the AKS admins group
@@ -56,7 +56,7 @@ resource "azurerm_role_assignment" "harbor_acr_push" {
 # Store service principal credentials in Key Vault
 resource "azurerm_key_vault_secret" "harbor_sp_id" {
   name         = "harbor-sp-id"
-  value        = azuread_service_principal.harbor_sp.application_id
+  value        = azuread_service_principal.harbor_sp.client_id
   key_vault_id = var.key_vault_id
 }
 
