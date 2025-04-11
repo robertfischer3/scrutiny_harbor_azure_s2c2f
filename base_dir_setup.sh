@@ -400,6 +400,8 @@ fi
 chmod +x "$BASE_DIR/scripts/init.sh"
 chmod +x "$BASE_DIR/scripts/apply.sh"
 chmod +x "$BASE_DIR/scripts/destroy.sh"
+chmod +x "$BASE_DIR/scripts/bootstrap.sh"
+chmod +x "$BASE_DIR/scripts/migrate_state.sh"
 
 echo "Directory structure setup/update complete!"
 echo "Existing files have been preserved."
