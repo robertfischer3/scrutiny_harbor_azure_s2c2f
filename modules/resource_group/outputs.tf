@@ -30,3 +30,9 @@ output "terraform_storage_account_key" {
   value       = var.create_terraform_storage ? azurerm_storage_account.terraform_storage[0].primary_access_key : null
   sensitive   = true
 }
+
+output "create_terraform_storage" {
+  description = "Whether the Terraform storage account was created"
+  value       = var.create_terraform_storage
+  
+}

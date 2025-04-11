@@ -1,19 +1,15 @@
 # modules/storage/main.tf
 
-# Create Resource Group for Storage
-resource "azurerm_resource_group" "storage_rg" {
-  name     = "${var.prefix}-${var.environment}-storage-rg"
-  location = var.location
-  tags     = var.tags
-}
-
 # Create Storage Account
 resource "azurerm_storage_account" "storage" {
-  name                     = "${var.prefix}${var.environment}sa"
-  resource_group_name      = azurerm_resource_group.storage_rg.name
-  location                 = azurerm_resource_group.storage_rg.location
-  account_tier             = var.account_tier
-  account_replication_type = var.account_replication_type
+  
+  count = var.create_terraform_storage ? 1 : 0
+
+  name                     = "${var.terraform_storage_account_prefix}${random_string.storage_account_suffix[0].result}"
+  resource_group_name      = azurerm_resource_group.resource_groups["tfstate"].name
+  location                 = azurerm_resource_group.resource_groups["tfstate"].location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
   account_kind             = "StorageV2"
   
   # S2C2F Level 3 Security Requirements
