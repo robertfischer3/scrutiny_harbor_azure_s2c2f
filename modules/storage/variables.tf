@@ -28,17 +28,10 @@ variable "account_tier" {
   type        = string
   default     = "Standard"
 }
-
-variable "create_terraform_storage" {
-  description = "Flag to determine whether to create the Terraform storage account"
-  type        = bool
-  default     = true
-}
-
-variable "terraform_storage_account_prefix" {
+variable "harbor_app_storage_account_prefix" {
   description = "Prefix for the storage account name for Terraform state"
   type        = string
-  default     = "harbortfs"
+  default     = "harborappstorage"
 }
 
 variable "account_replication_type" {

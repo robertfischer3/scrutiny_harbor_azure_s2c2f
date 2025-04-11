@@ -16,7 +16,7 @@ terraform {
 EOF
 }
 
-# Generate provider configuration
+# Generate provider configuration with random provider
 generate "provider" {
   path      = "provider.tf"
   if_exists = "overwrite_terragrunt"
@@ -24,6 +24,8 @@ generate "provider" {
 provider "azurerm" {
   features {}
 }
+
+provider "random" {}
 EOF
 }
 
@@ -46,8 +48,8 @@ inputs = {
     }
   }
   
-  # Create storage account for terraform state
+  # Create storage account for terraform state with generated name
   create_terraform_storage = true
-  terraform_storage_account_name = "tfstateaccount"
+  terraform_storage_account_prefix = "harbortfs"
   terraform_container_name = "tfstate"
 }

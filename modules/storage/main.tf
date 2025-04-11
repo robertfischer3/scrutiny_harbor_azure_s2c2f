@@ -1,11 +1,16 @@
 # modules/storage/main.tf
+resource "random_string" "app_storage_account_suffix" {
+  length  = 10
+  special = false
+  upper   = false
+  numeric = true
+}
 
 # Create Storage Account
 resource "azurerm_storage_account" "storage" {
   
-  count = var.create_terraform_storage ? 1 : 0
 
-  name                     = "${var.terraform_storage_account_prefix}${random_string.storage_account_suffix[0].result}"
+  name                     = "${var.harbor_app_storage_account_prefix}${random_string.storage_account_suffix[0].result}"
   resource_group_name      = azurerm_resource_group.resource_groups["tfstate"].name
   location                 = azurerm_resource_group.resource_groups["tfstate"].location
   account_tier             = "Standard"

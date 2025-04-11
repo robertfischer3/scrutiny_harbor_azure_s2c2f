@@ -151,7 +151,48 @@ TENANT_ID=$(echo "$SP_CREATION" | jq -r '.tenant')
 
 # Wait for the service principal to propagate
 echo "Waiting for service principal to propagate..."
-sleep 30
+sleep 60
+
+echo "Temporarily adding User Access Administrator role to the service principal..."
+ROLE_ASSIGNMENT_ID=$(az role assignment create \
+    --assignee "$APP_ID" \
+    --role "User Access Administrator" \
+    --scope "$SUBSCRIPTION_SCOPE" \
+    --query id -o tsv)
+
+echo "Role assignment ID: $ROLE_ASSIGNMENT_ID"
+
+# Store the role assignment ID for later removal
+echo "TEMP_ROLE_ASSIGNMENT_ID=\"$ROLE_ASSIGNMENT_ID\"" >> "$ENV_FILE"
+
+# Add a cleanup script that can be run after deployment
+cat > "cleanup_privileges.sh" << EOF
+#!/bin/bash
+# This script removes the temporary User Access Administrator role from the service principal
+
+echo "Removing temporary User Access Administrator role..."
+source "$ENV_FILE"
+
+if [ -z "\$TEMP_ROLE_ASSIGNMENT_ID" ]; then
+  echo "Error: Role assignment ID not found in $ENV_FILE"
+  exit 1
+fi
+
+az role assignment delete --ids "\$TEMP_ROLE_ASSIGNMENT_ID"
+if [ \$? -eq 0 ]; then
+  echo "Successfully removed User Access Administrator role"
+  # Remove the variable from the ENV_FILE
+  sed -i '/TEMP_ROLE_ASSIGNMENT_ID/d' "$ENV_FILE"
+else
+  echo "Failed to remove the role. Please check and remove it manually."
+fi
+EOF
+
+chmod +x cleanup_privileges.sh
+
+echo -e "${YELLOW}IMPORTANT: A temporary 'User Access Administrator' role has been assigned.${NC}"
+echo -e "${YELLOW}After completing your Terraform deployment, run ./cleanup_privileges.sh to remove this powerful role.${NC}"
+
 
 # Check if the resource group for Terraform state exists
 RG_EXISTS=$(az group list --query "[?name=='$RESOURCE_GROUP'].name" -o tsv)

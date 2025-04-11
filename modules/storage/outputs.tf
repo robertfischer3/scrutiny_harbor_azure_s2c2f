@@ -41,8 +41,3 @@ output "private_endpoint_ip" {
   description = "Private IP address of the Storage private endpoint"
   value       = var.environment == "prod" ? azurerm_private_endpoint.storage_pe[0].private_service_connection[0].private_ip_address : null
 }
-
-output "terraform_storage_account_suffix" {
-  description = "Random suffix used for the Terraform state storage account"
-  value       = var.create_terraform_storage ? random_string.storage_account_suffix[0].result : null
-}
