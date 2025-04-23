@@ -39,10 +39,10 @@ variable "create_terraform_storage" {
   default     = false
 }
 
-variable "terraform_storage_account_name" {
-  description = "Name of the storage account for Terraform state"
+variable "terraform_storage_account_prefix" {
+  description = "Prefix for the storage account name for Terraform state"
   type        = string
-  default     = "tfstateaccount"
+  default     = "harbortfs"
 }
 
 variable "terraform_container_name" {

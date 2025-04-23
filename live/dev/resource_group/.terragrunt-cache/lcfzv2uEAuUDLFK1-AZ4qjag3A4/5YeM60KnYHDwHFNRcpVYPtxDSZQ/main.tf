@@ -1,5 +1,14 @@
 # modules/resource_group/main.tf
 
+# Generate random suffix for storage account name to ensure uniqueness
+resource "random_string" "storage_account_suffix" {
+  count   = var.create_terraform_storage ? 1 : 0
+  length  = 8
+  special = false
+  upper   = false
+  numeric = true
+}
+
 # Create resource groups
 resource "azurerm_resource_group" "resource_groups" {
   for_each = var.resource_groups
@@ -13,7 +22,7 @@ resource "azurerm_resource_group" "resource_groups" {
 resource "azurerm_storage_account" "terraform_storage" {
   count = var.create_terraform_storage ? 1 : 0
 
-  name                     = var.terraform_storage_account_name
+  name                     = "${var.terraform_storage_account_prefix}${random_string.storage_account_suffix[0].result}"
   resource_group_name      = azurerm_resource_group.resource_groups["tfstate"].name
   location                 = azurerm_resource_group.resource_groups["tfstate"].location
   account_tier             = "Standard"

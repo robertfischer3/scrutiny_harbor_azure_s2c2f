@@ -1,7 +1,7 @@
 # Terragrunt configuration for RBAC
 
 include {
-  path = find_in_parent_folders("root.hcl")
+  path = find_in_parent_folders("dev_config.hcl")
 }
 
 terraform {
@@ -76,5 +76,5 @@ inputs = {
 # Local variables for this module
 locals {
   # Extract environment variables from the parent
-  env_vars = read_terragrunt_config(find_in_parent_folders("terragrunt.hcl"))
+  env_vars = read_terragrunt_config(find_in_parent_folders("dev_config.hcl"))
 }
