@@ -1,0 +1,25 @@
+{
+    "project_id": 1,
+    "enabled": true,
+    "settings": {
+      "scan_all_artifacts": true,
+      "scan_on_push": true,
+      "scan_schedule": {
+        "type": "daily",
+        "cron": "0 0 * * *"
+      },
+      "vulnerability_severity_prevention": {
+        "enabled": true,
+        "prevention_severity": "high",
+        "scan_image_on_tag": true,
+        "scan_overview_refresh_time": 3600
+      },
+      "reuse_sys_cve_allowlist": true,
+      "prevent_vul": {
+        "enabled": true,
+        "severity": "high"
+      }
+    },
+    "creation_time": "2025-04-08T00:00:00Z",
+    "update_time": "2025-04-08T00:00:00Z"
+  }

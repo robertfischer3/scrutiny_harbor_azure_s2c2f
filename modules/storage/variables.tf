@@ -28,6 +28,11 @@ variable "account_tier" {
   type        = string
   default     = "Standard"
 }
+variable "harbor_app_storage_account_prefix" {
+  description = "Prefix for the storage account name for Terraform state"
+  type        = string
+  default     = "harborappstorage"
+}
 
 variable "account_replication_type" {
   description = "Storage account replication type"

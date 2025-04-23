@@ -1,32 +1,63 @@
 #!/bin/bash
 
-# Script to create Harbor Infrastructure directory structure
+# Updated script to set up or update Harbor Infrastructure directory structure
 # for S2C2F Level 3 compliance on Azure
+# This version preserves existing terragrunt.hcl files and other configurations
 
-# Set base directory
-BASE_DIR="scrutiny_harbor-azure-s2c2f"
+# Set base directory - use current directory
+BASE_DIR="."
 
-# Create base directory
-# mkdir -p "$BASE_DIR"
+# Function to create directory if it doesn't exist
+create_dir_if_not_exists() {
+  if [ ! -d "$1" ]; then
+    echo "Creating directory: $1"
+    mkdir -p "$1"
+  else
+    echo "Directory already exists: $1"
+  fi
+}
+
+# Function to create file if it doesn't exist
+create_file_if_not_exists() {
+  if [ ! -f "$1" ]; then
+    echo "Creating file: $1"
+    touch "$1"
+  else
+    echo "File already exists: $1"
+  fi
+}
+
+# Function to write content to file if file doesn't exist
+write_file_if_not_exists() {
+  local file="$1"
+  local content="$2"
+  
+  if [ ! -f "$file" ]; then
+    echo "Creating file with content: $file"
+    echo "$content" > "$file"
+  else
+    echo "File already exists (preserving): $file"
+  fi
+}
+
+echo "Setting up/updating Harbor Infrastructure directory structure..."
+echo "Note: Existing terragrunt.hcl files and other configurations will be preserved."
 
 # Create top-level directories
-mkdir -p "$BASE_DIR/_env"
-mkdir -p "$BASE_DIR/modules"
-mkdir -p "$BASE_DIR/live"
-mkdir -p "$BASE_DIR/policies"
-mkdir -p "$BASE_DIR/scripts"
-mkdir -p "$BASE_DIR/docs"
+create_dir_if_not_exists "$BASE_DIR/_env"
+create_dir_if_not_exists "$BASE_DIR/modules"
+create_dir_if_not_exists "$BASE_DIR/live"
+create_dir_if_not_exists "$BASE_DIR/policies"
+create_dir_if_not_exists "$BASE_DIR/scripts"
+create_dir_if_not_exists "$BASE_DIR/docs"
 
 # Create environment variable files
-touch "$BASE_DIR/_env/dev.tfvars"
-touch "$BASE_DIR/_env/staging.tfvars"
-touch "$BASE_DIR/_env/prod.tfvars"
+create_file_if_not_exists "$BASE_DIR/_env/dev.tfvars"
+create_file_if_not_exists "$BASE_DIR/_env/staging.tfvars"
+create_file_if_not_exists "$BASE_DIR/_env/prod.tfvars"
 
-# Create root Terragrunt config
-cat > "$BASE_DIR/terragrunt.hcl" << 'EOL'
-# Root Terragrunt configuration
-
-remote_state {
+# Create root Terragrunt config if not exists
+write_file_if_not_exists "$BASE_DIR/root.hcl" 'remote_state {
   backend = "azurerm"
   generate = {
     path      = "backend.tf"
@@ -57,45 +88,140 @@ terraform {
     commands = ["apply", "plan"]
     execute  = ["terraform", "fmt", "-recursive"]
   }
-}
-EOL
+}'
 
 # Create module directories and files
-MODULE_DIRS=("networking" "aks" "acr" "storage" "database" "redis" "key_vault" "monitoring" "harbor")
+MODULE_DIRS=("networking" "aks" "acr" "storage" "database" "redis" "key_vault" "monitoring" "harbor" "resource_group" "rbac")
 
 for module in "${MODULE_DIRS[@]}"; do
-  mkdir -p "$BASE_DIR/modules/$module"
-  touch "$BASE_DIR/modules/$module/main.tf"
-  touch "$BASE_DIR/modules/$module/variables.tf"
-  touch "$BASE_DIR/modules/$module/outputs.tf"
+  create_dir_if_not_exists "$BASE_DIR/modules/$module"
+  create_file_if_not_exists "$BASE_DIR/modules/$module/main.tf"
+  create_file_if_not_exists "$BASE_DIR/modules/$module/variables.tf"
+  create_file_if_not_exists "$BASE_DIR/modules/$module/outputs.tf"
 done
 
-# Create live environment directories and files
+# Create live environment directories
 ENV_DIRS=("dev" "staging" "prod")
-SUB_DIRS=("resource_group" "networking" "aks" "acr" "storage" "database" "redis" "key_vault" "monitoring" "harbor")
+SUB_DIRS=("resource_group" "networking" "aks" "acr" "storage" "database" "redis" "key_vault" "monitoring" "harbor" "rbac")
 
 for env in "${ENV_DIRS[@]}"; do
-  mkdir -p "$BASE_DIR/live/$env"
+  create_dir_if_not_exists "$BASE_DIR/live/$env"
   
-  # Create environment terragrunt.hcl
-  cat > "$BASE_DIR/live/$env/terragrunt.hcl" << EOL
-# Terragrunt configuration for $env environment
+  # Create environment terragrunt.hcl if it doesn't exist
+  terragrunt_file="$BASE_DIR/live/$env/terragrunt.hcl"
+  write_file_if_not_exists "$terragrunt_file" "# Terragrunt configuration for $env environment
 
 include {
   path = find_in_parent_folders()
 }
 
-inputs = {
-  environment = "$env"
-  # Additional environment-specific variables can be defined here
+# Local variables for $env environment
+locals {
+  # These would be populated from environment variables during CI/CD
+  harbor_admin_password = get_env(\"HARBOR_ADMIN_PASSWORD\")
+  harbor_db_password    = get_env(\"HARBOR_DB_PASSWORD\")
+  harbor_redis_password = get_env(\"HARBOR_REDIS_PASSWORD\")
 }
-EOL
+
+inputs = {
+  environment            = \"$env\"
+  harbor_admin_password = local.harbor_admin_password
+  harbor_db_password    = local.harbor_db_password
+  harbor_redis_password = local.harbor_redis_password
+  # Other $env environment variables
+}"
 
   # Create subdirectories with terragrunt.hcl files
   for sub_dir in "${SUB_DIRS[@]}"; do
-    mkdir -p "$BASE_DIR/live/$env/$sub_dir"
+    create_dir_if_not_exists "$BASE_DIR/live/$env/$sub_dir"
     
-    cat > "$BASE_DIR/live/$env/$sub_dir/terragrunt.hcl" << EOL
+    # Check if terragrunt.hcl already exists in this directory
+    sub_terragrunt_file="$BASE_DIR/live/$env/$sub_dir/terragrunt.hcl"
+    
+    # Only create the file if it doesn't exist - this preserves existing terragrunt configurations
+    if [ ! -f "$sub_terragrunt_file" ]; then
+      if [ "$sub_dir" == "resource_group" ] && [ "$env" == "dev" ]; then
+        # Special case for resource_group in dev to use local backend
+        echo "Creating special resource_group terragrunt.hcl for dev environment"
+        cat > "$sub_terragrunt_file" << 'EOF'
+# Terragrunt configuration for resource_group in dev environment
+
+include {
+  path = find_in_parent_folders()
+}
+
+# Use local backend for bootstrapping
+terraform {
+  source = "../../../modules/resource_group"
+
+  # Override the backend configuration to use local state
+  # until we can create the Azure Storage backend
+  extra_arguments "disable_backend" {
+    commands = ["init"]
+    arguments = ["-backend=false"]
+  }
+}
+
+# Temporarily use local state instead of remote state
+generate "backend" {
+  path      = "backend.tf"
+  if_exists = "overwrite_terragrunt"
+  contents  = <<EOF
+terraform {
+  backend "local" {}
+}
+EOF
+}
+
+inputs = {
+  # Basic configuration
+  environment = "dev"
+  location    = "eastus"
+  prefix      = "harbor"
+  
+  # Resource groups to create
+  resource_groups = {
+    tfstate = {
+      name     = "terraform-state-rg"
+      location = "eastus"
+      tags     = {
+        Environment = "Shared"
+        Application = "Terraform"
+        ManagedBy   = "Terraform"
+      }
+    },
+    network = {
+      name     = "harbor-dev-network-rg"
+      location = "eastus"
+      tags     = {
+        Environment = "Development"
+        Application = "Harbor"
+        Component   = "Networking"
+        ManagedBy   = "Terraform"
+      }
+    },
+    common = {
+      name     = "harbor-dev-common-rg"
+      location = "eastus"
+      tags     = {
+        Environment = "Development"
+        Application = "Harbor"
+        Component   = "Common"
+        ManagedBy   = "Terraform"
+      }
+    }
+  }
+  
+  # Create storage account for terraform state
+  create_terraform_storage = true
+  terraform_storage_account_name = "tfstateaccount"
+  terraform_container_name = "tfstate"
+}
+EOF
+      else
+        # Regular configuration for other components or environments
+        echo "Creating default terragrunt.hcl for $env/$sub_dir"
+        cat > "$sub_terragrunt_file" << EOF
 # Terragrunt configuration for $sub_dir in $env environment
 
 include {
@@ -115,20 +241,28 @@ dependencies {
 inputs = {
   # Module-specific inputs
 }
-EOL
+EOF
+      fi
+    else
+      echo "Preserving existing terragrunt.hcl file: $sub_terragrunt_file"
+    fi
   done
 done
 
-# Create policy directories and files
+# Create policy directories
 POLICY_DIRS=("image_scanning" "artifact_signing" "rbac" "network_policies")
 
 for policy in "${POLICY_DIRS[@]}"; do
-  mkdir -p "$BASE_DIR/policies/$policy"
-  touch "$BASE_DIR/policies/$policy/policy.tf"
+  create_dir_if_not_exists "$BASE_DIR/policies/$policy"
+  create_file_if_not_exists "$BASE_DIR/policies/$policy/policy.tf"
 done
 
-# Create scripts with basic content
-cat > "$BASE_DIR/scripts/init.sh" << 'EOL'
+# Create or update scripts, but don't overwrite existing ones
+# Create init.sh script if it doesn't exist
+init_script="$BASE_DIR/scripts/init.sh"
+if [ ! -f "$init_script" ]; then
+  echo "Creating init.sh script"
+  cat > "$init_script" << 'EOF'
 #!/bin/bash
 # Initialization script for Harbor S2C2F infrastructure
 
@@ -153,7 +287,7 @@ fi
 cd "$ENV_DIR"
 
 # Run terragrunt init in each subdirectory
-find . -type d -name "*" -mindepth 1 -maxdepth 1 | while read -r dir; do
+find . -mindepth 1 -maxdepth 1 -type d -name "*" | while read -r dir; do
   echo "Initializing $dir..."
   cd "$dir"
   terragrunt init
@@ -161,9 +295,16 @@ find . -type d -name "*" -mindepth 1 -maxdepth 1 | while read -r dir; do
 done
 
 echo "Initialization complete!"
-EOL
+EOF
+else
+  echo "Preserving existing init.sh script"
+fi
 
-cat > "$BASE_DIR/scripts/apply.sh" << 'EOL'
+# Create apply.sh if it doesn't exist
+apply_script="$BASE_DIR/scripts/apply.sh"
+if [ ! -f "$apply_script" ]; then
+  echo "Creating apply.sh script"
+  cat > "$apply_script" << 'EOF'
 #!/bin/bash
 # Apply script for Harbor S2C2F infrastructure
 
@@ -193,7 +334,7 @@ if [ "$2" == "all" ]; then
   terragrunt run-all apply
 else
   echo "Applying components one by one..."
-  find . -type d -name "*" -mindepth 1 -maxdepth 1 | while read -r dir; do
+  find . -mindepth 1 -maxdepth 1 -type d -name "*" | while read -r dir; do
     echo "Applying $dir..."
     cd "$dir"
     terragrunt apply
@@ -202,9 +343,16 @@ else
 fi
 
 echo "Apply complete!"
-EOL
+EOF
+else
+  echo "Preserving existing apply.sh script"
+fi
 
-cat > "$BASE_DIR/scripts/destroy.sh" << 'EOL'
+# Create destroy.sh if it doesn't exist
+destroy_script="$BASE_DIR/scripts/destroy.sh"
+if [ ! -f "$destroy_script" ]; then
+  echo "Creating destroy.sh script"
+  cat > "$destroy_script" << 'EOF'
 #!/bin/bash
 # Destroy script for Harbor S2C2F infrastructure
 
@@ -234,7 +382,7 @@ if [ "$2" == "all" ]; then
   terragrunt run-all destroy
 else
   echo "Destroying components one by one in reverse order..."
-  find . -type d -name "*" -mindepth 1 -maxdepth 1 | sort -r | while read -r dir; do
+  find . -mindepth 1 -maxdepth 1 -type d -name "*" | sort -r | while read -r dir; do
     echo "Destroying $dir..."
     cd "$dir"
     terragrunt destroy
@@ -243,86 +391,17 @@ else
 fi
 
 echo "Destroy complete!"
-EOL
+EOF
+else
+  echo "Preserving existing destroy.sh script"
+fi
 
-# Make scripts executable
+# Make scripts executable, even if they already existed
 chmod +x "$BASE_DIR/scripts/init.sh"
 chmod +x "$BASE_DIR/scripts/apply.sh"
 chmod +x "$BASE_DIR/scripts/destroy.sh"
+chmod +x "$BASE_DIR/scripts/bootstrap.sh"
+chmod +x "$BASE_DIR/scripts/migrate_state.sh"
 
-# Create documentation files with basic content
-cat > "$BASE_DIR/docs/architecture.md" << 'EOL'
-# Harbor S2C2F Architecture
-
-This document describes the architecture of the Harbor deployment on Azure, designed to meet Level 3 maturity in the S2C2F framework.
-
-## Overview
-
-The architecture is built around a Harbor registry deployed on Azure Kubernetes Service (AKS) with supporting services:
-
-- Azure Database for PostgreSQL for the database
-- Azure Cache for Redis for caching
-- Azure Storage for persistent storage
-- Azure Key Vault for secrets management
-- Azure Container Registry as a backup registry
-
-## Network Architecture
-
-[Network architecture description]
-
-## Security Controls
-
-[Security controls description]
-
-## High Availability
-
-[High availability architecture]
-
-## Monitoring and Logging
-
-[Monitoring and logging architecture]
-EOL
-
-cat > "$BASE_DIR/docs/security_compliance.md" << 'EOL'
-# S2C2F Level 3 Compliance Documentation
-
-This document details how our Harbor implementation meets the requirements of S2C2F Level 3 maturity.
-
-## S2C2F Level 3 Requirements
-
-Level 3 represents "comprehensive governance of OSS components" and focuses on proactive security measures and segregation of software until it's been properly tested and secured.
-
-## Compliance Matrix
-
-| Requirement | Implementation | Status |
-|-------------|----------------|--------|
-| [Requirement 1] | [Implementation details] | [Status] |
-| [Requirement 2] | [Implementation details] | [Status] |
-| [Requirement 3] | [Implementation details] | [Status] |
-
-## Security Controls
-
-[Security controls details]
-
-## Auditing and Compliance Monitoring
-
-[Auditing and compliance monitoring details]
-EOL
-
-cat > "$BASE_DIR/docs/operation_manual.md" << 'EOL'
-# Harbor Operations Manual
-
-This manual provides instructions for operating the Harbor registry infrastructure.
-
-## Deployment
-
-### Prerequisites
-
-- Azure subscription
-- Terraform 1.0.0 or later
-- Terragrunt 0.35.0 or later
-- Azure CLI
-
-### Deployment Process
-
-1. Initialize the infrastructure:
+echo "Directory structure setup/update complete!"
+echo "Existing files have been preserved."

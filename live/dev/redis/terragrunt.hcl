@@ -1,7 +1,7 @@
 # live/dev/redis/terragrunt.hcl
 
 include {
-  path = find_in_parent_folders()
+  path = "${find_in_parent_folders("root.hcl")}"
 }
 
 terraform {
